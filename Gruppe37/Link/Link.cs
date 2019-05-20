@@ -69,53 +69,41 @@ namespace Linklaget
         /// </param>
         public void send(byte[] buf, int size)      //EGEN KODE
         {
-            byte[] result = new byte[buf.Length];
+            //byte[] result = new byte[buf.Length];
             int counter = 0;
-            result[counter] = (byte)'A';
+            buffer[counter] = (byte)'A';
+            counter++;
 
-            bool CFlag = false;
-            bool DFlag = false;
-
-            foreach (byte i in buf)
+            for (int i = 0; i < size - 1; i++)
             {
-
-                if (CFlag) {
-                    result[i] = (byte)'C';
-                    CFlag = false;
-                        }
-                else if (DFlag)
-                {
-                    result[i] = (byte)'D';
-                    DFlag = false;
-                }
-                else if (buf[i] == 'A')
+                if (buf[i] == DELIMITER) //A
                 {
                     //Bytestuffing, switch to 'BC'
-                    result[i] = (byte)'B';
-                    CFlag = true;
+                    buffer[counter] = (byte)'B';
+                    counter++;
+                    buffer[counter] = (byte)'C';
+                    counter++;
                 }
                 else if (i == 'B')
                 {
                     //Bytestuffing, switch to 'BD'
-                    result[i] = (byte)'B';
-                    CFlag = true;
+                    buffer[counter] = (byte)'B';
+                    counter++;
+                    buffer[counter] = (byte)'D';
+                    counter++;
                 }
                 else
                 {
-                    //Tilføj resultat
-                    result[counter] = buf[i];
-                }
-
-                if (i == size - 1)
-                {
-                    result[i] = (byte)'A';
-                    //CFlag = false;
-                    //DFlag = false;
+                    //Tilføj resultat normalt
+                    buffer[counter] = buf[i];
+                    counter++;
                 }
                 counter++;
             }
-            //Returner resultat
-            serialPort.Write(result, 0, result.Length);
+            //Sætter stop karakter og returnerer resultat
+            buffer[counter] = DELIMITER; //A
+            counter++;
+            serialPort.Write(buffer, 0, counter);
         }
         /// <summary>
         /// Receive the specified buf and size.
@@ -131,42 +119,41 @@ namespace Linklaget
         /// </param>
         public int receive(ref byte[] buf)      //EGEN KODE
         {
-            byte[] result = new byte[buf.Length];
-            bool BFlag = false;
+            int counter = 0;
 
-            while(serialPort.Read(buf, 0, buf.Length) != 'A') { }
+            //Vent på startkarakter
+            while(serialPort.Read(buffer, 0, 1) != DELIMITER) { }
 
             foreach (byte i in buf)
             {
-                if (BFlag)
+                //Læser 1 byte ind i bufferTemp, fra position 0
+                serialPort.Read(buffer, 0, 1);
+                if (i == DELIMITER) //A
                 {
+                    //Stop
+                    return counter;
+                }
+                else if (buffer[0] == 'B')
+                {
+                    //BC = A, BD = B
+                    serialPort.Read(buffer, 0, 1);
                     if (i == 'C')
-                        result[i] = (byte)'A';
-                    else if (i == 'D')
-                        result[i] = (byte)'B';
-
-                    BFlag = false;
-                }
-                else if (i == 'A')
-                {
-                    return 0;
-                }
-                else if (i == 'B')
-                {
-                    BFlag = true;
+                    {
+                        buffer[counter] = DELIMITER;
+                    }
+                    else if (buffer[0] == 'D')
+                    {
+                        buffer[counter] = (byte)'B';
+                    }
+                    counter++;
                 }
                 else
                 {
                     //Read result
-                }
-
-                if (i == buf.Length)
-                {
-                    //Forward array
+                    buf[counter] = buffer[0];
                 }
             }
-            
-            return 0;
+            return counter;
         }
     }
 }
