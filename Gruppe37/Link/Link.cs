@@ -67,11 +67,10 @@ namespace Linklaget
         /// <param name='result'>
         /// Result.
         /// </param>
-        public void send(byte[] buf, int size)      //EGEN KODE
+        public void send(byte[] buf, int size)      
         {
-            //byte[] result = new byte[buf.Length];
             int counter = 0;
-            buffer[counter] = (byte)'A';
+            buffer[counter] = DELIMITER;
             counter++;
 
             for (int i = 0; i < size - 1; i++)

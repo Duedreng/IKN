@@ -43,15 +43,19 @@ namespace Transportlaget
 		/// The data received. True = received data in receiveAck, False = not received data in receiveAck
 		/// </summary>
 		private bool dataReceived;
-		/// <summary>
-		/// The number of data the recveived.
-		/// </summary>
-		private int recvSize = 0;
+        /// <summary>
+        /// The number of data received.
+        /// </summary>
+        private int recvSize = 0;
+        /// <summary>
+        /// Length of the payload header.
+        /// </summary>
+        private int headerLength = 4;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="Transport"/> class.
-		/// </summary>
-		public Transport (int BUFSIZE, string APP)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Transport"/> class.
+        /// </summary>
+        public Transport (int BUFSIZE, string APP)
 		{
 			link = new Link(BUFSIZE+(int)TransSize.ACKSIZE, APP);
 			checksum = new Checksum();
@@ -112,32 +116,34 @@ namespace Transportlaget
 		/// <param name='size'>
 		/// Size.
 		/// </param>
-		public void send(byte[] buf, int size)      //EGEN KODE
+		public void send(byte[] buf, int size)
 		{
             //Sæt sekvensnummer og type i header
             buffer[(int)TransCHKSUM.SEQNO] = seqNo;
             buffer[(int)TransCHKSUM.TYPE] = (int)TransType.DATA;
             
             //Kopier data fra buffer til buf
-            Array.Copy(buffer, (int)TransSize.ACKSIZE, buf, 0, size);
-            //Jeg er ikke helt sikker på at ACKSIZE skal bruges her, men den har den rigtige størrelse
+            Array.Copy(buf, 0, buffer, headerLength, size);
+
             //Checksum (opdaterer header)
-            checksum.calcChecksum(ref buffer, size + (int)TransSize.ACKSIZE);
+            checksum.calcChecksum(ref buffer, size + headerLength);
 
             do
             {
                 //Sender en byte gennem link layer indtil modtaget acknowledgement
-                link.send(buf, size);
+                link.send(buffer, size + headerLength);
             } while (receiveAck() == false);    
 		}
 
-		/// <summary>
-		/// Receive the specified buffer.
-		/// </summary>
-		/// <param name='buffer'>
-		/// Buffer.
-		/// </param>
-		public int receive (ref byte[] buf)         //EGEN KODE
+        //Jeg er ikke helt sikker på at ACKSIZE skal bruges her, men den har den rigtige størrelse
+
+        /// <summary>
+        /// Receive the specified buffer.
+        /// </summary>
+        /// <param name='buffer'>
+        /// Buffer.
+        /// </param>
+        public int receive (ref byte[] buf)
 		{
             do
             {
@@ -152,10 +158,7 @@ namespace Transportlaget
             //Kopier payload size til buf
             Array.Copy(buffer, 4, buf, 0, buf.Length);
 
-            //Handle data errors
-            //???
-
-            return recvSize - (int)TransSize.ACKSIZE;
+            return recvSize - headerLength;
 		}
 	}
 }
