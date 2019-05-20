@@ -47,10 +47,6 @@ namespace Transportlaget
         /// The number of data received.
         /// </summary>
         private int recvSize = 0;
-        /// <summary>
-        /// Length of the payload header.
-        /// </summary>
-        private int headerLength = 4;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Transport"/> class.
@@ -123,20 +119,18 @@ namespace Transportlaget
             buffer[(int)TransCHKSUM.TYPE] = (int)TransType.DATA;
             
             //Kopier data fra buffer til buf
-            Array.Copy(buf, 0, buffer, headerLength, size);
+            Array.Copy(buf, 0, buffer, (int)TransSize.ACKSIZE, size);
 
             //Checksum (opdaterer header)
-            checksum.calcChecksum(ref buffer, size + headerLength);
+            checksum.calcChecksum(ref buffer, size + (int)TransSize.ACKSIZE);
 
             do
             {
                 //Sender en byte gennem link layer indtil modtaget acknowledgement
-                link.send(buffer, size + headerLength);
+                link.send(buffer, size + (int)TransSize.ACKSIZE);
             } while (receiveAck() == false);    
 		}
-
-        //Jeg er ikke helt sikker på at ACKSIZE skal bruges her, men den har den rigtige størrelse
-
+        
         /// <summary>
         /// Receive the specified buffer.
         /// </summary>
@@ -156,9 +150,9 @@ namespace Transportlaget
             } while(dataReceived == false);   //Gentag hvis data ikke modtaget
 
             //Kopier payload size til buf
-            Array.Copy(buffer, 4, buf, 0, buf.Length);
+            Array.Copy(buffer, (int)TransSize.ACKSIZE, buf, 0, buf.Length);
 
-            return recvSize - headerLength;
+            return recvSize - (int)TransSize.ACKSIZE;
 		}
 	}
 }
