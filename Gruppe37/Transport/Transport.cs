@@ -114,24 +114,21 @@ namespace Transportlaget
 		/// </param>
 		public void send(byte[] buf, int size)      //EGEN KODE
 		{
+            //Sæt sekvensnummer og type i header
+            buffer[(int)TransCHKSUM.SEQNO] = seqNo;
+            buffer[(int)TransCHKSUM.TYPE] = (int)TransType.DATA;
+            
+            //Kopier data fra buffer til buf
+            Array.Copy(buffer, (int)TransSize.ACKSIZE, buf, 0, size);
+            //Jeg er ikke helt sikker på at ACKSIZE skal bruges her, men den har den rigtige størrelse
+            //Checksum (opdaterer header)
+            checksum.calcChecksum(ref buffer, size + (int)TransSize.ACKSIZE);
 
             do
             {
-                //Sæt sekvensnummer og type 
-                buffer[(int)TransCHKSUM.SEQNO] = seqNo;
-                buffer[(int)TransCHKSUM.TYPE] = (int)TransType.DATA;
-                
-                //Kopier data fra buffer til buf
-                Array.Copy(buffer, (int)TransSize.ACKSIZE, buf, 0, size);
-
-                //Checksum (opdaterer header)
-                checksum.calcChecksum(ref buffer, size + (int)TransSize.ACKSIZE);
-                
-                //Send afsted
+                //Sender en byte gennem link layer indtil modtaget acknowledgement
                 link.send(buf, size);
-            } while (receiveAck() == false);    //Sender en byte gennem link layer indtil modtaget acknowledgement
-            
-            
+            } while (receiveAck() == false);    
 		}
 
 		/// <summary>
@@ -144,18 +141,19 @@ namespace Transportlaget
 		{
             do
             {
-                recvSize = link.receive(ref buffer);        //Receive data
-                dataReceived = checksum.checkChecksum(buffer, (int)TransSize.ACKSIZE);  //Checksum
-                sendAck(dataReceived);  //ACK/NACK
-                //Copy payload size to buf
-                Array.Copy(buffer, 4, buf, 0, buf.Length);  //Kopier
-            }
-            while(dataReceived == false);   //Gentag hvis data ikke modtaget
+                //Modtag data størrelse
+                recvSize = link.receive(ref buffer);
+                //Checksum, true/false
+                dataReceived = checksum.checkChecksum(buffer, recvSize);
+                //ACK/NACK
+                sendAck(dataReceived);
+            } while(dataReceived == false);   //Gentag hvis data ikke modtaget
+
+            //Kopier payload size til buf
+            Array.Copy(buffer, 4, buf, 0, buf.Length);
 
             //Handle data errors
             //???
-
-
 
             return recvSize - (int)TransSize.ACKSIZE;
 		}
